@@ -19,42 +19,29 @@
 #include <esp_task_wdt.h>
 #include <Wire.h> // library for I2C communication
 
-#include <Adafruit_MLX90614.h>  // library made for the sensor
+#include <Adafruit_MLX90614.h>  // library made for the temperature sensor
 
-#include "MAX30105.h"
-#include "spo2_algorithm.h"
+#include "algorithm_by_RF.h"
+#include "max30102.h"
+#include "algorithm.h" 
 
-#include "heartRate.h"
 
 #define SDA_temp 33//sda line for second i2c bus
 #define SCL_temp 32//scl line for second i2c bus
 
-MAX30105 particleSensor;
+//--POX--
+// Interrupt pin
+const byte oxiInt = 27; // pin connected to MAX30102 INT
 
-#define MAX_BRIGHTNESS 255
-
-uint32_t irBuffer[100]; //infrared LED sensor data
-uint32_t redBuffer[100];  //red LED sensor data
-
-int32_t bufferLength; //data length
-int32_t spo2; //SPO2 value
-int8_t validSPO2; //indicator to show if the SPO2 calculation is valid
-int32_t heartRate; //heart rate value
-int8_t validHeartRate; //indicator to show if the heart rate calculation is valid
-
+uint32_t aun_ir_buffer[BUFFER_SIZE]; //infrared LED sensor data
+uint32_t aun_red_buffer[BUFFER_SIZE];  //red LED sensor data
+  float n_spo2_maxim;  //SPO2 value
+  int8_t ch_spo2_valid_maxim;  //indicator to show if the SPO2 calculation is valid
+  int32_t n_heart_rate_maxim; //heart rate value
+  int8_t  ch_hr_valid_maxim;  //indicator to show if the heart rate calculation is valid
+ 
+//--temp--
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();  // object
-
-//HR stuff---------------
-const byte RATE_SIZE = 4; //Increase this for more averaging. 4 is good.
-byte rates[RATE_SIZE]; //Array of heart rates
-byte rateSpot = 0;
-long lastBeat = 0; //Time at which the last beat occurred
-
-float beatsPerMinute;
-int beatAvg;
-long irValue;
-long delta;
-//-----------------------
 
 // Replace with your network credentials
 const char* ssid = "Weefee";
@@ -139,11 +126,10 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       notifyClients(getData());
       
       tempOrSPO2 = "SPO2";
-      runSPO2();
-      SPO2Data = String(spo2); //SPO2 value to send to web
+      checkIfValidPOX();
+      SPO2Data = String(n_spo2_maxim); //SPO2 value to send to web
       //PRbpm = "60";
-      calcHR();
-      PRbpm = String(beatAvg); // PRbpm value to send to web
+      PRbpm = String(n_heart_rate_maxim, DEC);
       Serial.println(getData());//display on console for debugging
       notifyClients(getData());//send data to web
       Serial.println("Sent Data to Web");
@@ -172,105 +158,42 @@ void initWebSocket() {
   server.addHandler(&ws);
 }
 void setupTemp() {
-  Wire1.begin(SDA_temp, SCL_temp, 100000);
+  uint32_t freq = 100000;
+  Wire1.begin(SDA_temp, SCL_temp, freq);
   mlx.begin();  // initilizing the sensor 
 }
 void initPOX(){
-  // Initialize sensor
-  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
+  pinMode(oxiInt, INPUT);  //pin 27 connects to the interrupt output pin of the MAX30102
+  maxim_max30102_init();  //initialize the MAX30102
+
+  }
+//Continuously taking samples from MAX30102.  Heart rate and SpO2 are calculated every ST seconds
+void calcHRSPO2() { 
+  //buffer length of BUFFER_SIZE stores ST seconds of samples running at FS sps
+  //read BUFFER_SIZE samples, and determine the signal range
+  for(int32_t i=0;i<BUFFER_SIZE;i++)
   {
-    Serial.println(F("MAX30105 was not found. Please check wiring/power. Any further data is incorrect"));
+    while(digitalRead(oxiInt)==1);  //wait until the interrupt pin asserts
+    maxim_max30102_read_fifo((aun_red_buffer+i), (aun_ir_buffer+i));  //read from MAX30102 FIFO
   }
-
-  byte ledBrightness = 60; //Options: 0=Off to 255=50mA
-  byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
-  byte ledMode = 2; //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
-  byte sampleRate = 100; //Options: 50, 100, 200, 400, 800, 1000, 1600, 3200
-  int pulseWidth = 411; //Options: 69, 118, 215, 411
-  int adcRange = 4096; //Options: 2048, 4096, 8192, 16384
-
-  particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
-  }
-
-void runSPO2(){
-  //esp_task_wdt_init(60, true);//make timout time 2 minutes
-
-  bufferLength = 100; //buffer length of 100 stores 4 seconds of samples running at 25sps
-
-  //read the first 100 samples, and determine the signal range
-  for (byte i = 0 ; i < bufferLength ; i++)
-  {
-    while (particleSensor.available() == false) //do we have new data?
-      particleSensor.check(); //Check the sensor for new data
-
-    redBuffer[i] = particleSensor.getRed();
-    irBuffer[i] = particleSensor.getIR();
-    particleSensor.nextSample(); //We're finished with this sample so move to next sample
-  }
-  
-  //calculate heart rate and SpO2 after first 100 samples (first 4 seconds of samples)
-  maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
-
-  //Continuously taking samples from MAX30102.  Heart rate and SpO2 are calculated every 1 second
-  
-    //dumping the first 25 sets of samples in the memory and shift the last 75 sets of samples to the top
-    for (byte i = 25; i < 100; i++)
-    {
-      redBuffer[i - 25] = redBuffer[i];
-      irBuffer[i - 25] = irBuffer[i];
-    }
-  
-    //take 25 sets of samples before calculating the heart rate.
-    for (byte i = 75; i < 100; i++)
-    {
-      while (particleSensor.available() == false) //do we have new data?
-        particleSensor.check(); //Check the sensor for new data
-
-      redBuffer[i] = particleSensor.getRed();
-      irBuffer[i] = particleSensor.getIR();
-      particleSensor.nextSample(); //We're finished with this sample so move to next sample
-    }
-
-    //After gathering 25 new samples recalculate HR and SP02
-    maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
-  Serial.println("FinalSPO2:");
-  Serial.println(spo2);
+   //calculate heart rate and SpO2 after BUFFER_SIZE samples (ST seconds of samples) using MAXIM's method
+   maxim_heart_rate_and_oxygen_saturation(aun_ir_buffer, BUFFER_SIZE, aun_red_buffer, &n_spo2_maxim, &ch_spo2_valid_maxim, &n_heart_rate_maxim, &ch_hr_valid_maxim);  
 }
-
-void calcHR()
-{
-
-  for(int i = 0; i<900;i++){
-  irValue = particleSensor.getIR();
-  if (checkForBeat(irValue) == true)
-  {
-    //We sensed a beat!
-    delta = millis() - lastBeat;
-    lastBeat = millis();
-
-    beatsPerMinute = 60 / (delta / 1000.0);
-
-    if (beatsPerMinute < 255 && beatsPerMinute > 20)
-    {
-      rates[rateSpot++] = (byte)beatsPerMinute; //Store this reading in the array
-      rateSpot %= RATE_SIZE; //Wrap variable
-
-      //Take average of readings
-      beatAvg = 0;
-      for (byte x = 0 ; x < RATE_SIZE ; x++)
-        beatAvg += rates[x];
-      beatAvg /= RATE_SIZE;
+void checkIfValidPOX(){
+  calcHRSPO2();
+  //if they heart rate and SPO2 are both not valid, recalculate
+    while(!(ch_hr_valid_maxim && ch_spo2_valid_maxim)){
+      calcHRSPO2();
     }
-  }
-  }
-  Serial.print("Avg BPM=");
-  Serial.println(beatAvg);
-  
-}
-
+    Serial.println(F("SpO2_MX\tHR_MX"));
+    Serial.print(n_spo2_maxim);
+    Serial.print("\t");
+    Serial.print(n_heart_rate_maxim, DEC);
+    Serial.print("\t");
+}  
 void setup() {
   Serial.begin(115200);
-  esp_task_wdt_init(120, true);//make timout time 3 minutes
+  esp_task_wdt_init(120, true);//make watchdog timout time 2 minutes
 
   initFS();
   initWiFi();
@@ -278,7 +201,6 @@ void setup() {
   initPOX();
   setupTemp();//set up the temperature sensor
 
-  
   // Web Server Root URL
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.html", "text/html");
