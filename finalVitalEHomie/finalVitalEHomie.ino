@@ -109,27 +109,26 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   {
     data[len] = 0;
     //strcmp compares strings, 0 means strings are equal
-    if (strcmp((char*)data, "getTemp") == 0) 
+    if (strcmp((char*)data, "getTemp") == 0) //String compare websites message to "getTemp"
     {
       Serial.println("getTemp");
       tempOrSPO2 = "temp";
-      temperature = String(mlx.readObjectTempF(), 2);//converting temp value (double) to a string and storing in "temperature"
+      temperature = String(mlx.readObjectTempF()+4, 2);//converting temp value (double) to a string and storing in "temperature"
       Serial.println(getData());//display on console for debugging
       notifyClients(getData());//send data to web
     }
-    if (strcmp((char*)data, "getSPO2") == 0) 
+    if (strcmp((char*)data, "getSPO2") == 0) //String compare websites message to "getSPO2"
     {
       Serial.println("getSPO2");
       tempOrSPO2 = "SPO2";
-      SPO2Data = "...";
-      PRbpm = "...";
+      SPO2Data = "...";//"Calculating SPO2"
+      PRbpm = "...";//"Calculating Heat rate"
       notifyClients(getData());
       
       tempOrSPO2 = "SPO2";
       checkIfValidPOX();
       SPO2Data = String(n_spo2_maxim); //SPO2 value to send to web
-      //PRbpm = "60";
-      PRbpm = String(n_heart_rate_maxim, DEC);
+      PRbpm = String(n_heart_rate_maxim, DEC);//Heart rate value to send to web
       Serial.println(getData());//display on console for debugging
       notifyClients(getData());//send data to web
       Serial.println("Sent Data to Web");
