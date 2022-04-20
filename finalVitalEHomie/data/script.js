@@ -1,5 +1,5 @@
-// Complete project details: https://randomnerdtutorials.com/esp32-web-server-websocket-sliders/
-
+// Complete project details: https://randomnerdtutorials.com/esp32-web-server-websocket-sliders/[1]
+//[1]Begin----------------------------------------------------------------------------
 //gets ip address
 var gateway = `ws://${window.location.hostname}/ws`;
 var websocket;
@@ -25,7 +25,7 @@ function onClose(event) {
     console.log('Connection closed');
     setTimeout(initWebSocket, 2000);
 }
-
+//[1] end---------------------------------------------------------------------------
 //handle message received via websocket protocol in onMessage fxn
 function onMessage(event) {
     console.log(event.data);
