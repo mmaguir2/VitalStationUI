@@ -10,20 +10,19 @@
 */
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <AsyncTCP.h>
+#include <WiFi.h>//wifi 
+#include <AsyncTCP.h>/website
 #include <ESPAsyncWebServer.h>
-#include "SPIFFS.h"
-#include <Arduino_JSON.h>
-#include "ESPAsyncWebServer.h"
-#include <esp_task_wdt.h>
-#include <Wire.h> // library for I2C communication
+#include "SPIFFS.h"//file system for HTML, CSS, and JS files
+#include <Arduino_JSON.h>//how to read JSON strings
+#include "ESPAsyncWebServer.h"//website
+#include <esp_task_wdt.h>//watchdog
+#include <Wire.h> // I2C communication
 
 #include <Adafruit_MLX90614.h>  // library made for the temperature sensor
 
-#include "algorithm_by_RF.h"
-#include "max30102.h"
-#include "algorithm.h" 
+#include "max30102.h"//MAXREFDES117 
+#include "algorithm.h"//MAXREFDES17
 
 
 #define SDA_temp 33//sda line for second i2c bus
