@@ -29,15 +29,19 @@ function onClose(event) {
 //handle message received via websocket protocol in onMessage fxn
 function onMessage(event) {
     console.log(event.data);
-    var myObj = JSON.parse(event.data);
+    var myObj = JSON.parse(event.data);//search JSON string sent from MCU to website
     //if tempOrSPO2 is "SPO2", that means we are using pulse ox not temp sensor
 	if(myObj.tempOrSPO2 == "SPO2")
 	{
+		//place SPO2 value from JSON string in mySPO2 value of HTML website
 		document.getElementById("mySPO2").innerHTML = myObj.SPO2Data;
+		//place bpm value from JSON string in myPRbpm value of HTML website
 		document.getElementById("myPRbpm").innerHTML = myObj.PRbpm;
 	}
-	if(myObj.tempOrSPO2 == "temp")// tempOrSPO2 must be temp
+	//if tempOrSPO2 is "SPO2", that means we are using temperature sensor
+	if(myObj.tempOrSPO2 == "temp")
 	{
+		//place temperature value from JSON string in myTemp value of HTML website
 		document.getElementById("myTemp").innerHTML = myObj.temperature;
 	}
 	return;
