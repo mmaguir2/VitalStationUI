@@ -52,6 +52,8 @@ function onMessage(event) {
 function tempButton(){
 	websocket.send("getTemp");
 }
+/*When record SPO2 is clicked send mcu a message saying begin
+ recording temperature "getSPO2". Handle "getSPO2" on esp side */
 function pulseOxButton(){
 	websocket.send("getSPO2");
 }
