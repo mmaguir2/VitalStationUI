@@ -14,7 +14,7 @@ https://randomnerdtutorials.com/esp32-web-server-websocket-sliders/ (accessed Ap
 
 #include <Arduino.h>
 #include <WiFi.h>//wifi 
-#include <AsyncTCP.h>/website
+#include <AsyncTCP.h>//website
 #include <ESPAsyncWebServer.h>
 #include "SPIFFS.h"//file system for HTML, CSS, and JS files
 #include <Arduino_JSON.h>//how to read JSON strings
