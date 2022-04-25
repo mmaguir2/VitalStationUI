@@ -2,10 +2,10 @@
 Maritza Aguirre-Diaz <br>
 Senior Friendly User Interface for our Stand Alone Vital Station (VitalEHomie)<br>
 finalVitalEHomie (main software files created for VitalEHomie)<br>
--data folder<br>
-    -index.html<br>
-    -script.js<br>
-    -style.css<br>
+-data contains:<br>
+    -index.html (website layout)<br>
+    -script.js(website functionality)<br>
+    -style.css(website colors, font, etc)<br>
  -finalVitalEHomie.ino (arduino sketch)<br>
  
 folders to include in libraries folder of Arduino IDE for arduino sketch to compile<br>
