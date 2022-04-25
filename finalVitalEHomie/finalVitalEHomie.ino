@@ -7,6 +7,9 @@
   
   The above copyright notice and this permission notice shall be included in all
   copies or substantial portions of the Software.
+  [1] R. Santos and S. Santos. "ESP32 Web Server (WebSocket) with Multiple 
+Sliders: Control LEDs Brightness (PWM)" randomnerdtutorials.com. 
+https://randomnerdtutorials.com/esp32-web-server-websocket-sliders/ (accessed April 5, 2022).
 */
 
 #include <Arduino.h>
@@ -42,13 +45,13 @@ uint32_t aun_red_buffer[BUFFER_SIZE];  //red LED sensor data
 //--temp--
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();  // object
 
-// Replace with your network credentials
+// Replace with your network credentials [1]
 const char* ssid = "Weefee";
 const char* password = "mediumbonus189";
 
-// Create AsyncWebServer object on port 80
+// Create AsyncWebServer object on port 80  [1]
 AsyncWebServer server(80);
-// Create a WebSocket object
+// Create a WebSocket object  [1]
 AsyncWebSocket ws("/ws");
 
 String message = "";
@@ -57,7 +60,7 @@ String PRbpm = "";
 String temperature = "";
 String tempOrSPO2 = "";
 
-//Json Variable to Hold sensor data Values
+//Json Variable to Hold sensor data Values  [1]
 JSONVar dataValues;
 
 //Get Data
@@ -73,7 +76,7 @@ String getData()
   return jsonString;
 }
 
-// Initialize SPIFFS
+// Initialize SPIFFS  [1]
 void initFS() {
   if (!SPIFFS.begin()) {
     Serial.println("An error has occurred while mounting SPIFFS");
@@ -83,7 +86,7 @@ void initFS() {
   }
 }
 
-// Initialize WiFi
+// Initialize WiFi  [1]
 void initWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -95,7 +98,7 @@ void initWiFi() {
   }
   Serial.println(WiFi.localIP());
 }
-//send webpage sensor data
+//send webpage sensor data  [1]
 //call notifyClients when sensor is done retreiving data
 void notifyClients(String dataValues) {
   ws.textAll(dataValues);
@@ -134,6 +137,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     }
   }
 }
+// [1]
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
   switch (type) {
     case WS_EVT_CONNECT:
@@ -150,7 +154,7 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
       break;
   }
 }
-
+// [1]
 void initWebSocket() {
   ws.onEvent(onEvent);
   server.addHandler(&ws);
@@ -199,11 +203,11 @@ void setup() {
   initPOX();
   setupTemp();//set up the temperature sensor
 
-  // Web Server Root URL
+  // Web Server Root URL  [1]
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/index.html", "text/html");
   });
-  // Route to load style.css file
+  // Route to load style.css file  [1]
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/style.css", "text/css");
   });
@@ -215,5 +219,5 @@ void setup() {
 }
 
 void loop() {
-  ws.cleanupClients();
+  ws.cleanupClients(); // [1]
 }
